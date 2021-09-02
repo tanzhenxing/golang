@@ -5,24 +5,26 @@ import (
 	"net/http"
 )
 
-func handlerFunc(w http.ResponseWriter, r *http.Request) {
+func defaultFunc(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, "<h1>Hello GoLang Go 语言</h1>")
-	} else if r.URL.Path == "/about" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, "請求路徑：", r.URL.Path)
-		fmt.Fprint(w, "此博客是用以记录编程笔记，如您有反馈或建议，请联系 "+
-			"<a href=\"mailto:summer@example.com\">summer@example.com</a>")
+		fmt.Fprint(w, "Home Page, Hello GoLang.<a href=\"/about\">About</a>")
 	} else {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, "無法找到該頁面")
-		fmt.Fprint(w, "<a href=\"/about\" >关于我们</a>", r.URL.Query())
-		fmt.Fprint(w, r.Header.Get("User-Agent"))
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, "404 错误页")
 	}
-
 }
+
+func aboutFunc(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprint(w, "about page 关于我们 <a href=\"/\">Home</a>")
+}
+
 func main() {
-	http.HandleFunc("/", handlerFunc)
-	http.ListenAndServe(":3000", nil)
+	router := http.NewServeMux()
+
+	router.HandleFunc("/", defaultFunc)
+	router.HandleFunc("/about", aboutFunc)
+
+	http.ListenAndServe(":3000", router)
 }
