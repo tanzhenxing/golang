@@ -34,7 +34,18 @@ func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "参建新的文章")
+	err := r.ParseForm()
+	if err != nil {
+		fmt.Fprint(w, "请提交正确的数据！")
+		return
+	}
+	title := r.PostForm.Get("title")
+
+	fmt.Fprintf(w, "r.Form 中 title 的值为: %v <br>", r.FormValue("title"))
+	fmt.Fprintf(w, "r.PostForm 中 title 的值为: %v <br>", r.PostFormValue("title"))
+	fmt.Fprintf(w, "Post PostForm: %v <br />", r.PostForm)
+	fmt.Fprintf(w, "Post Form: %v <br />", r.Form)
+	fmt.Fprintf(w, "title: %v", title)
 }
 
 func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +56,7 @@ func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
 	<title>创建文章</title>
 	</head>
 	<body>
-	      <form action="%s" method="post">
+	      <form action="%s?test=data" method="post">
 		     <p><input type="text" name="title"></p>
 			 <p><textarea name="body" cols="30" rows="10"></textarea></p>
 			 <p><button type="submit">提交</button></p>
@@ -87,11 +98,6 @@ func main() {
 
 	// 中间件
 	router.Use(forceHTMLMiddleware)
-
-	homeURL, _ := router.Get("home").URL()
-	fmt.Println("homeURL: ", homeURL)
-	articleURL, _ := router.Get("articles.show").URL("id", "23")
-	fmt.Println("articleURL: ", articleURL)
 
 	http.ListenAndServe(":3000", removeTrailingSlash(router))
 }
