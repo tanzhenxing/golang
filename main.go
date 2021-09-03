@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
+	"text/template"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
 )
@@ -33,39 +36,77 @@ func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "访问文章列表")
 }
 
-func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		fmt.Fprint(w, "请提交正确的数据！")
-		return
-	}
-	title := r.PostForm.Get("title")
+type ArticlesFormData struct {
+	Title, Body string
+	URL         *url.URL
+	Errors      map[string]string
+}
 
-	fmt.Fprintf(w, "r.Form 中 title 的值为: %v <br>", r.FormValue("title"))
-	fmt.Fprintf(w, "r.PostForm 中 title 的值为: %v <br>", r.PostFormValue("title"))
-	fmt.Fprintf(w, "Post PostForm: %v <br />", r.PostForm)
-	fmt.Fprintf(w, "Post Form: %v <br />", r.Form)
-	fmt.Fprintf(w, "title: %v", title)
+func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.PostFormValue("title")
+	body := r.PostFormValue("body")
+	errors := make(map[string]string)
+
+	if title == "" {
+		errors["title"] = "标题不能为空"
+	} else if utf8.RuneCountInString(title) < 3 || utf8.RuneCountInString(title) > 40 {
+		errors["title"] = "标题长度要在 3-40之间"
+	}
+	if body == "" {
+		errors["body"] = "内容不能为空"
+	} else if utf8.RuneCountInString(body) < 10 {
+		errors["body"] = "内容长度要大于等于10个字节"
+	}
+
+	if len(errors) == 0 {
+		fmt.Fprint(w, "验证通过！<br />")
+
+	} else {
+		fmt.Fprintf(w, "验证失败")
+	}
+
+	if len(errors) == 0 {
+		fmt.Fprintf(w, "表单填写正确")
+	} else {
+		storeURL, _ := router.Get("articles.store").URL()
+
+		data := ArticlesFormData{
+			Title:  title,
+			Body:   body,
+			URL:    storeURL,
+			Errors: errors,
+		}
+
+		err := r.ParseForm()
+		if err != nil {
+			fmt.Fprint(w, "请提交正确的数据！")
+			return
+		}
+
+		tmpl, err := template.ParseFiles("resources/views/articles/create.gohtml")
+		if err != nil {
+			panic(err)
+		}
+		tmpl.Execute(w, data)
+	}
+
 }
 
 func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
-	html := `
-	<!doctype html>
-	<html lang="en">
-	<head>
-	<title>创建文章</title>
-	</head>
-	<body>
-	      <form action="%s?test=data" method="post">
-		     <p><input type="text" name="title"></p>
-			 <p><textarea name="body" cols="30" rows="10"></textarea></p>
-			 <p><button type="submit">提交</button></p>
-		  </form>
-	</body>
-	</html>
-	`
+
 	storeUrl, _ := router.Get("articles.store").URL()
-	fmt.Fprintf(w, html, storeUrl)
+	data := ArticlesFormData{
+		Title:  "",
+		Body:   "",
+		URL:    storeUrl,
+		Errors: nil,
+	}
+
+	tmpl, err := template.ParseFiles("resources/views/articles/create.gohtml")
+	if err != nil {
+		panic(err)
+	}
+	tmpl.Execute(w, data)
 }
 
 func forceHTMLMiddleware(next http.Handler) http.Handler {
